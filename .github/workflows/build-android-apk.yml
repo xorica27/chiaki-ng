@@ -2,7 +2,14 @@ name: Build Android APK (sideload build)
 
 # chiaki-ng ships no Android artifact: the project has no Android workflow, and its own site states
 # that no official mobile app exists yet. This builds the Android app from source and uploads the
-# debug APK, which is signed with the standard debug key so no keystore secrets are required.
+# debug APK.
+#
+# Signing: a freshly provisioned runner has no ~/.android/debug.keystore, so Gradle generates one
+# with a random key every run. Each build would then carry a different signature, and installing
+# over the previous build fails with INSTALL_FAILED_UPDATE_INCOMPATIBLE. That forces an uninstall,
+# which wipes the app data including the Remote Play registration, so the console has to be
+# re-paired each time. The build therefore restores one fixed debug keystore from the
+# ANDROID_KEYSTORE_B64 secret and installs it at the default path Gradle already looks at.
 #
 # ABI note: android/app/build.gradle declares no abiFilters, so left alone it builds every ABI.
 # This narrows the build to armeabi-v7a, which is what the target Android TV reports for
@@ -27,6 +34,18 @@ jobs:
           distribution: "zulu"
           java-version: "21"
           cache: "gradle"
+
+      - name: Install the stable signing keystore
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "::error::ANDROID_KEYSTORE_B64 secret is missing; the APK signature would change on every build"
+            exit 1
+          fi
+          mkdir -p ~/.android
+          printf '%s' "$KEYSTORE_B64" | base64 -d > ~/.android/debug.keystore
+          keytool -list -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey | tail -4
 
       - name: Show toolchain
         run: |
