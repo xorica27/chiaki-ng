@@ -140,15 +140,19 @@ class StreamActivity : AppCompatActivity()
 		}
 	}
 
-	private var controlsJob: Job? = null
+	// Both control fragments live in the stream layout, and the layout declares the
+	// touchpad-only one last. onAttachFragment fires for each of them, and cancelling on
+	// every attach therefore left only the last fragment's state being collected, so every
+	// D-pad, stick and button press from the main controls view was dropped before it could
+	// reach the console. Keep one job per fragment instead of a single shared slot.
+	private val controlsJobs = mutableListOf<Job>()
 
 	override fun onAttachFragment(fragment: Fragment)
 	{
 		super.onAttachFragment(fragment)
 		if(fragment is TouchControlsFragment)
 		{
-			controlsJob?.cancel()
-			controlsJob = fragment.controllerState
+			controlsJobs += fragment.controllerState
 				.onEach { viewModel.input.touchControllerState = it }
 				.launchIn(lifecycleScope)
 			fragment.onScreenControlsEnabled = viewModel.onScreenControlsEnabled
@@ -173,7 +177,7 @@ class StreamActivity : AppCompatActivity()
 	override fun onDestroy()
 	{
 		super.onDestroy()
-		controlsJob?.cancel()
+		controlsJobs.forEach { it.cancel() }
 	}
 
 	private fun reconnect()
