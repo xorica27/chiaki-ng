@@ -195,9 +195,22 @@ static void android_chiaki_event_cb(ChiakiEvent *event, void *user)
 		}
 		case CHIAKI_EVENT_RUMBLE:
 			E->CallVoidMethod(env, session->java_session,
-							  session->java_session_event_rumble_meth,
-							  (jint)event->rumble.left,
-							  (jint)event->rumble.right);
+						  session->java_session_event_rumble_meth,
+						  (jint)event->rumble.left,
+						  (jint)event->rumble.right);
+			break;
+		case CHIAKI_EVENT_KEYBOARD_OPEN:
+			CHIAKI_LOGI(session->log, "Keyboard open requested by console, initial text: %s",
+						event->keyboard.text_str ? event->keyboard.text_str : "(none)");
+			/* TEMPORARY feasibility probe: push text straight into the console's field */
+			chiaki_session_keyboard_set_text(&session->session, "chiaki-ng keyboard test");
+			break;
+		case CHIAKI_EVENT_KEYBOARD_TEXT_CHANGE:
+			CHIAKI_LOGI(session->log, "Keyboard text changed by console: %s",
+						event->keyboard.text_str ? event->keyboard.text_str : "(none)");
+			break;
+		case CHIAKI_EVENT_KEYBOARD_REMOTE_CLOSE:
+			CHIAKI_LOGI(session->log, "Keyboard closed by console");
 			break;
 		default:
 			break;
@@ -230,6 +243,8 @@ JNIEXPORT void JNICALL JNI_FCN(sessionCreate)(JNIEnv *env, jobject obj, jobject 
 
 	ChiakiConnectInfo connect_info = { 0 };
 	connect_info.ps5 = ps5;
+	/* let the console open its on-screen keyboard and route text to us */
+	connect_info.enable_keyboard = true;
 
 	const char *str_borrow = E->GetStringUTFChars(env, host_string, NULL);
 	connect_info.host = host_str = strdup(str_borrow);
@@ -459,6 +474,28 @@ JNIEXPORT void JNICALL JNI_FCN(sessionSetLoginPin)(JNIEnv *env, jobject obj, jlo
 	const char *pin = E->GetStringUTFChars(env, pin_java, NULL);
 	chiaki_session_set_login_pin(&session->session, (const uint8_t *)pin, strlen(pin));
 	E->ReleaseStringUTFChars(env, pin_java, pin);
+}
+
+JNIEXPORT void JNICALL JNI_FCN(sessionKeyboardSetText)(JNIEnv *env, jobject obj, jlong ptr, jstring text_java)
+{
+	AndroidChiakiSession *session = (AndroidChiakiSession *)ptr;
+	const char *text = E->GetStringUTFChars(env, text_java, NULL);
+	if(!text)
+		return;
+	chiaki_session_keyboard_set_text(&session->session, text);
+	E->ReleaseStringUTFChars(env, text_java, text);
+}
+
+JNIEXPORT void JNICALL JNI_FCN(sessionKeyboardAccept)(JNIEnv *env, jobject obj, jlong ptr)
+{
+	AndroidChiakiSession *session = (AndroidChiakiSession *)ptr;
+	chiaki_session_keyboard_accept(&session->session);
+}
+
+JNIEXPORT void JNICALL JNI_FCN(sessionKeyboardReject)(JNIEnv *env, jobject obj, jlong ptr)
+{
+	AndroidChiakiSession *session = (AndroidChiakiSession *)ptr;
+	chiaki_session_keyboard_reject(&session->session);
 }
 
 typedef struct android_discovery_service_t
