@@ -34,6 +34,12 @@ jobs:
           echo "ANDROID_HOME=$ANDROID_HOME"
           ls "${ANDROID_HOME}/ndk" 2>/dev/null || echo "no NDKs preinstalled"
 
+      - name: Install host build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
+          protoc --version
+
       - name: Build debug APK (armeabi-v7a)
         working-directory: android
         run: |
