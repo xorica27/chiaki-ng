@@ -53,9 +53,11 @@ jobs:
           chmod +x ./gradlew
           ./gradlew assembleDebug --stacktrace -Pandroid.injected.build.abi=armeabi-v7a
 
-      - name: Report ABIs in the APK
+      - name: Report the APK and its ABIs
         run: |
-          APK=android/app/build/outputs/apk/debug/app-debug.apk
+          find android/app/build/outputs/apk -name '*.apk' -print
+          APK=$(find android/app/build/outputs/apk -name '*.apk' | head -1)
+          test -n "$APK" || { echo "no APK produced"; exit 1; }
           ls -la "$APK"
           unzip -l "$APK" | grep -oE 'lib/[^/]+/' | sort -u
 
@@ -63,5 +65,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: chiaki-ng-debug-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          # Globbing rather than a fixed name: injecting an ABI makes AGP name the
+          # output app-armeabi-v7a-debug.apk instead of app-debug.apk.
+          path: android/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
