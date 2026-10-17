@@ -115,8 +115,12 @@ class StreamActivity : AppCompatActivity()
 			showOverlay()
 		}
 
-		//viewModel.session.attachToTextureView(textureView)
-		viewModel.session.attachToSurfaceView(binding.surfaceView)
+		// A TextureView is composited by the app itself, so its content lands in the display
+		// framebuffer and can be captured (adb screencap, screen recording, mirroring). A
+		// SurfaceView is routed to the TV's hardware video plane instead, which capture
+		// cannot read and returns as black.
+		viewModel.session.attachToTextureView(binding.textureView)
+		//viewModel.session.attachToSurfaceView(binding.surfaceView)
 		viewModel.session.state.observe(this, Observer { this.stateChanged(it) })
 		adjustStreamViewAspect()
 
