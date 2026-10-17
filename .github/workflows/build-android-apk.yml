@@ -39,13 +39,27 @@ jobs:
         env:
           KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
         run: |
+          set -o pipefail
           if [ -z "$KEYSTORE_B64" ]; then
             echo "::error::ANDROID_KEYSTORE_B64 secret is missing; the APK signature would change on every build"
             exit 1
           fi
-          mkdir -p ~/.android
-          printf '%s' "$KEYSTORE_B64" | base64 -d > ~/.android/debug.keystore
-          keytool -list -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey | tail -4
+          # The app module reads its signing details from android/local.properties and only
+          # applies them when the "chiakiKeystore" key is present. Without it Gradle prints
+          # "Signing not enabled" and falls back to a debug keystore that a freshly provisioned
+          # runner generates at random, so every build carried a different signature and
+          # installing over the previous build failed. Write the project's own keys here so
+          # both debug and release sign with this one keystore. local.properties may already
+          # exist (sdk.dir), hence append rather than overwrite.
+          mkdir -p "$RUNNER_TEMP/signing"
+          printf '%s' "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/signing/debug.keystore"
+          keytool -list -keystore "$RUNNER_TEMP/signing/debug.keystore" -storepass android -alias androiddebugkey
+          {
+            echo "chiakiKeystore=$RUNNER_TEMP/signing/debug.keystore"
+            echo "chiakiKeystorePW=android"
+            echo "chiakiKeyAlias=androiddebugkey"
+            echo "chiakiKeyPW=android"
+          } >> android/local.properties
 
       - name: Show toolchain
         run: |
