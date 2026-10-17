@@ -140,11 +140,17 @@ class StreamInput(val context: Context, val preferences: Preferences)
 
 		val buttonMask: UInt = when(event.keyCode)
 		{
-			// dpad handled by MotionEvents
-			//KeyEvent.KEYCODE_DPAD_LEFT -> ControllerState.BUTTON_DPAD_LEFT
-			//KeyEvent.KEYCODE_DPAD_RIGHT -> ControllerState.BUTTON_DPAD_RIGHT
-			//KeyEvent.KEYCODE_DPAD_UP -> ControllerState.BUTTON_DPAD_UP
-			//KeyEvent.KEYCODE_DPAD_DOWN -> ControllerState.BUTTON_DPAD_DOWN
+			// Gamepads report the d-pad as HAT axis motion, which onGenericMotionEvent
+			// already handles. A keyboard or TV remote sends it as key codes instead, and
+			// for those the axis path never fires, so map them here too. Without this an
+			// Android TV remote cannot move anything on the console.
+			KeyEvent.KEYCODE_DPAD_LEFT -> ControllerState.BUTTON_DPAD_LEFT
+			KeyEvent.KEYCODE_DPAD_RIGHT -> ControllerState.BUTTON_DPAD_RIGHT
+			KeyEvent.KEYCODE_DPAD_UP -> ControllerState.BUTTON_DPAD_UP
+			KeyEvent.KEYCODE_DPAD_DOWN -> ControllerState.BUTTON_DPAD_DOWN
+			// The remote's or keyboard's confirm key, matching how BUTTON_A maps.
+			KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER ->
+				if(swapCrossMoon) ControllerState.BUTTON_MOON else ControllerState.BUTTON_CROSS
 			KeyEvent.KEYCODE_BUTTON_A -> if(swapCrossMoon) ControllerState.BUTTON_MOON else ControllerState.BUTTON_CROSS
 			KeyEvent.KEYCODE_BUTTON_B -> if(swapCrossMoon) ControllerState.BUTTON_CROSS else ControllerState.BUTTON_MOON
 			KeyEvent.KEYCODE_BUTTON_X -> if(swapCrossMoon) ControllerState.BUTTON_PYRAMID else ControllerState.BUTTON_BOX
